@@ -18,8 +18,16 @@ export default async function handler(req, res) {
           {
             role: 'user',
             content: [
-              { type: 'text', text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.' },
-              { type: 'image_url', image_url: { url: image_url } },
+              {
+                type: 'text',
+                text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: image_url,
+                },
+              },
             ],
           },
         ],
@@ -43,4 +51,3 @@ export default async function handler(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
-// trigger redeploy
