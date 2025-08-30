@@ -1,14 +1,4 @@
-// redeploy trigger
 export default async function handler(req, res) {
-  // CORS headers
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    return res.status(200).end();
-  }
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
   try {
     const { image_url, prompt, price } = req.body;
 
@@ -23,23 +13,17 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4-1106-vision',
         messages: [
           {
             role: 'user',
             content: [
-              {
-                type: 'text',
-                text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.',
-              },
-              {
-                type: 'image_url',
-                image_url: { url: image_url },
-              },
+              { type: 'text', text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.' },
+              { type: 'image_url', image_url: { url: image_url } },
             ],
           },
         ],
-        max_tokens: 600,
+        max_tokens: 800,
       }),
     });
 
@@ -51,7 +35,7 @@ export default async function handler(req, res) {
 
     const responseText = data.choices?.[0]?.message?.content || 'No description';
     const finalResponse = price
-      ? `${responseText}\n\nEntered price: $${price}`
+      ? `${responseText}\n\nUser-entered price: $${price}`
       : responseText;
 
     res.status(200).json({ result: finalResponse });
