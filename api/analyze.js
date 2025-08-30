@@ -13,20 +13,20 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4-1106-vision',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.',
+                text:
+                  prompt ||
+                  'Analyze this nutrition label. Extract calories, protein, carbs, fat, and compute protein per dollar and per 100 calories.',
               },
               {
                 type: 'image_url',
-                image_url: {
-                  url: image_url,
-                },
+                image_url: { url: image_url },
               },
             ],
           },
@@ -37,17 +37,19 @@ export default async function handler(req, res) {
 
     const data = await openAiRes.json();
 
-    if (data.error) {
-      return res.status(500).json({ error: data.error.message });
+    if (!openAiRes.ok) {
+      console.error('OpenAI error:', data);
+      return res.status(500).json({ error: data.error?.message || 'OpenAI API request failed' });
     }
 
-    const responseText = data.choices?.[0]?.message?.content || 'No description';
-    const finalResponse = price
-      ? `${responseText}\n\nUser-entered price: $${price}`
+    const responseText = data.choices?.[0]?.message?.content || 'No result from GPT.';
+    const finalOutput = price
+      ? `${responseText}\n\n💵 User-entered price: $${price}`
       : responseText;
 
-    res.status(200).json({ result: finalResponse });
+    res.status(200).json({ result: finalOutput });
   } catch (err) {
+    console.error('Handler error:', err);
     res.status(500).json({ error: err.message });
   }
 }
