@@ -1,4 +1,13 @@
 export default async function handler(req, res) {
+  // CORS headers
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.status(200).end();
+  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   try {
     const { image_url, prompt, price } = req.body;
 
@@ -18,12 +27,18 @@ export default async function handler(req, res) {
           {
             role: 'user',
             content: [
-              { type: 'text', text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.' },
-              { type: 'image_url', image_url: { url: image_url } },
+              {
+                type: 'text',
+                text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.',
+              },
+              {
+                type: 'image_url',
+                image_url: { url: image_url },
+              },
             ],
           },
         ],
-        max_tokens: 500,
+        max_tokens: 600,
       }),
     });
 
@@ -33,10 +48,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: data.error.message });
     }
 
-    // Append price if it was included
     const responseText = data.choices?.[0]?.message?.content || 'No description';
     const finalResponse = price
-      ? `${responseText}\n\nUser-entered price: $${price}`
+      ? `${responseText}\n\nEntered price: $${price}`
       : responseText;
 
     res.status(200).json({ result: finalResponse });
