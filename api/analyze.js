@@ -1,28 +1,22 @@
 export default async function handler(req, res) {
   try {
-    // Only allow POST requests
+    // Only allow POST
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Parse req.body if it's still a string
-    let body = req.body;
-    if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body);
-      } catch (e) {
-        return res.status(400).json({ error: 'Invalid JSON in request body' });
-      }
+    // Read body
+    const buffers = [];
+    for await (const chunk of req) {
+      buffers.push(chunk);
     }
-
-    // Destructure data from the parsed body
-    const { image_url, prompt, price } = body;
+    const rawBody = Buffer.concat(buffers).toString();
+    const { image_url, prompt, price } = JSON.parse(rawBody || '{}');
 
     if (!image_url) {
       return res.status(400).json({ error: 'Missing image_url' });
     }
 
-    // Call OpenAI with gpt-4o + vision
     const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -38,15 +32,11 @@ export default async function handler(req, res) {
             content: [
               {
                 type: 'text',
-                text:
-                  prompt ||
-                  'Extract and summarize the protein, calories, carbs, and fats from this nutrition label.',
+                text: prompt || 'Extract and summarize the nutritional values: calories, protein, carbs, fats.',
               },
               {
                 type: 'image_url',
-                image_url: {
-                  url: image_url,
-                },
+                image_url: { url: image_url },
               },
             ],
           },
@@ -60,13 +50,12 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: data.error.message });
     }
 
-    const responseText = data.choices?.[0]?.message?.content || 'No response received.';
-
-    const finalResponse = price
-      ? `${responseText}\n\n🟡 User-entered price: $${price}`
+    const responseText = data.choices?.[0]?.message?.content || 'No description found.';
+    const finalResult = price
+      ? `${responseText}\n\nUser-entered price: $${price}`
       : responseText;
 
-    res.status(200).json({ result: finalResponse });
+    res.status(200).json({ result: finalResult });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
