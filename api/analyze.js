@@ -1,17 +1,24 @@
 export default async function handler(req, res) {
   try {
-    // Only allow POST
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Read body
     const buffers = [];
     for await (const chunk of req) {
       buffers.push(chunk);
     }
+
     const rawBody = Buffer.concat(buffers).toString();
-    const { image_url, prompt, price } = JSON.parse(rawBody || '{}');
+    let parsedBody;
+
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+
+    const { image_url, prompt, price } = parsedBody;
 
     if (!image_url) {
       return res.status(400).json({ error: 'Missing image_url' });
@@ -32,11 +39,13 @@ export default async function handler(req, res) {
             content: [
               {
                 type: 'text',
-                text: prompt || 'Extract and summarize the nutritional values: calories, protein, carbs, fats.',
+                text: prompt || 'Extract and summarize nutritional values: calories, protein, carbs, fats.',
               },
               {
                 type: 'image_url',
-                image_url: { url: image_url },
+                image_url: {
+                  url: image_url,
+                },
               },
             ],
           },
