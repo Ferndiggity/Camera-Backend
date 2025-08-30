@@ -1,52 +1,46 @@
-// POST /api/analyze  (Vercel serverless function)
 export default async function handler(req, res) {
-  const ORIGIN = 'https://ferndiggity.github.io'; // your Pages origin
-
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', ORIGIN);
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
-    const { image_url, prompt } = req.body || {};
-    if (!image_url) return res.status(400).json({ error: 'image_url required' });
+    const { image_url, prompt, price } = req.body;
 
-    const r = await fetch('https://api.openai.com/v1/responses', {
+    if (!image_url) {
+      return res.status(400).json({ error: 'Missing image_url' });
+    }
+
+    const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini', // or 'gpt-4o'
-        input: [{
-          role: 'user',
-          content: [
-            { type: 'input_text', text: prompt || 'Analyze this image briefly.' },
-            { type: 'input_image', image_url } // can be data: URL or https URL
-          ]
-        }]
-      })
+        model: 'gpt-4-vision-preview',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt || 'Analyze the nutritional label and provide total protein, calories, carbs, and fats.' },
+              { type: 'image_url', image_url: { url: image_url } },
+            ],
+          },
+        ],
+        max_tokens: 500,
+      }),
     });
 
-    const data = await r.json();
-    const text =
-      data?.output?.[0]?.content?.[0]?.text ??
-      data?.response?.output_text ??
-      JSON.stringify(data);
+    const data = await openAiRes.json();
 
-    res.setHeader('Access-Control-Allow-Origin', ORIGIN);
-    return res.status(200).json({ result: text });
+    if (data.error) {
+      return res.status(500).json({ error: data.error.message });
+    }
+
+    // Append price if it was included
+    const responseText = data.choices?.[0]?.message?.content || 'No description';
+    const finalResponse = price
+      ? `${responseText}\n\nUser-entered price: $${price}`
+      : responseText;
+
+    res.status(200).json({ result: finalResponse });
   } catch (err) {
-    res.setHeader('Access-Control-Allow-Origin', ORIGIN);
-    return res.status(500).json({ error: String(err) });
+    res.status(500).json({ error: err.message });
   }
 }
